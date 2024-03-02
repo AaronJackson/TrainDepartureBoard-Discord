@@ -62,6 +62,7 @@
 
 // Global objects
 GFXcanvas1 buffer(WIDTH, HEIGHT);
+uint8_t *rawBuffer;
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 WiFiUDP Udp;
@@ -125,6 +126,7 @@ void setup() {
 
 void drawBuffer() {
   int x,y;
+  uint8_t *ptr;
 
   for (int row=0; row < 7; row++) {
     for (int col=0; col < 384; col++) {
@@ -133,7 +135,8 @@ void drawBuffer() {
       x = col % 192;
       y = row + (col < 192 ? 7 : 0);
 
-      PIN_SET(SHA, buffer.getPixel(x, y));
+      ptr = &rawBuffer[(x / 8) + y * ((WIDTH + 7) / 8)];
+      PIN_SET(SHA, ((*ptr) & (0x80 >> (x & 7))) != 0);
 
       // We need to skip 2 lines (+14), but also like above, we need
       // to swap the two lines because they are drawn from the bottom
@@ -144,7 +147,8 @@ void drawBuffer() {
       // at the top): B3 B3 B3 B2 B1 B0
       if (col < 192) x = (x % 64) + 64;
 
-      PIN_SET(SHB, buffer.getPixel(x, y));
+      ptr = &rawBuffer[(x / 8) + y * ((WIDTH + 7) / 8)];
+      PIN_SET(SHB, ((*ptr) & (0x80 >> (x & 7))) != 0);
 
       // Pulse the clock
       PULSE(CLOCK);
