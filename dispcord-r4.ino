@@ -423,18 +423,20 @@ void drawDepartureBoard() {
   }
 }
 
-unsigned long counter;
+unsigned long poll = 0;
 void loop() {
-  if ((counter++ % 300) == 0) {
+  unsigned long m = millis();
+  if (poll < m) {
     checkWiFi();
     checkMqtt();
     mqtt.loop();
+    poll = m + 1000;
   }
 
-  if (redrawTimer < millis()) {
+  if (redrawTimer < m) {
   
     // This can be overridded by a draw function, e.g. for scrolling text
-    redrawTimer = millis() + 20e3;
+    redrawTimer = m + 20e3;
 
     buffer.fillScreen(0x0000);
     if (strlen(doorbell) > 0) {
