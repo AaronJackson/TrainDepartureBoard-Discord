@@ -424,6 +424,7 @@ void drawDepartureBoard() {
 }
 
 unsigned long poll = 0;
+unsigned long ntpRefresh = 0;
 void loop() {
   unsigned long m = millis();
   if (poll < m) {
@@ -431,6 +432,14 @@ void loop() {
     checkMqtt();
     mqtt.loop();
     poll = m + 1000;
+  }
+
+  if (ntpRefresh < m) {
+    timeClient.update();
+    auto unixTime = timeClient.getEpochTime();
+    RTCTime timeToSet = RTCTime(unixTime);
+    RTC.setTime(timeToSet);
+    ntpRefresh = m + 60*10*1000; // 10 minutes
   }
 
   if (redrawTimer < m) {
