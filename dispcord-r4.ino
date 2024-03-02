@@ -157,9 +157,6 @@ void drawBuffer() {
 
     // Latch the data
     PULSE(STROBE);
-
-    // The delay is important to avoid ghosting between rows
-    delayMicroseconds(200);
   }
 }
 
