@@ -129,11 +129,11 @@ void drawBuffer() {
   uint8_t *ptr;
 
   for (int row=0; row < 7; row++) {
-    for (int col=0; col < 384; col++) {
+    for (int col=0; col < 192; col++) {
       // The rows have to be swapped because of the order the bits are
       // pushed out.
-      x = col % 192;
-      y = row + (col < 192 ? 7 : 0);
+      x = col;
+      y = row + 7;
 
       ptr = &rawBuffer[(x / 8) + y * ((WIDTH + 7) / 8)];
       PIN_SET(SHA, ((*ptr) & (0x80 >> (x & 7))) != 0);
@@ -141,11 +141,31 @@ void drawBuffer() {
       // We need to skip 2 lines (+14), but also like above, we need
       // to swap the two lines because they are drawn from the bottom
       // up.
-      y = row + (col < 192 ? 21 : 14);
+      y = row + 21;
 
       // Essential what we want is the following (refer to the diagram
       // at the top): B3 B3 B3 B2 B1 B0
       if (col < 192) x = (x % 64) + 64;
+
+      ptr = &rawBuffer[(x / 8) + y * ((WIDTH + 7) / 8)];
+      PIN_SET(SHB, ((*ptr) & (0x80 >> (x & 7))) != 0);
+
+      // Pulse the clock
+      PULSE(CLOCK);
+    }
+    for (int col=192; col < 384; col++) {
+      // The rows have to be swapped because of the order the bits are
+      // pushed out.
+      x = col - 192;
+      y = row;
+
+      ptr = &rawBuffer[(x / 8) + y * ((WIDTH + 7) / 8)];
+      PIN_SET(SHA, ((*ptr) & (0x80 >> (x & 7))) != 0);
+
+      // We need to skip 2 lines (+14), but also like above, we need
+      // to swap the two lines because they are drawn from the bottom
+      // up.
+      y = row + 14;
 
       ptr = &rawBuffer[(x / 8) + y * ((WIDTH + 7) / 8)];
       PIN_SET(SHB, ((*ptr) & (0x80 >> (x & 7))) != 0);
