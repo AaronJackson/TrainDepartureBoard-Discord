@@ -145,7 +145,7 @@ void drawBuffer() {
 
       // Essential what we want is the following (refer to the diagram
       // at the top): B3 B3 B3 B2 B1 B0
-      if (col < 192) x = (x % 64) + 64;
+      x = (x % 64) + 64;
 
       ptr = &rawBuffer[(x / 8) + y * ((WIDTH + 7) / 8)];
       PIN_SET(SHB, ((*ptr) & (0x80 >> (x & 7))) != 0);
