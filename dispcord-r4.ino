@@ -233,11 +233,11 @@ void checkMqtt() {
   if (mqtt.connected()) return;
   mqtt.setBufferSize(2048);
 
-  print("Waiting for MQTT... :'("); 
+  print("Waiting for MQTT... :'(");
 
   mqtt.setServer(MQTT_HOST, MQTT_PORT);
   mqtt.setCallback(mqttCallback);
-  
+
   while (!mqtt.connected()) {
     String clientId = NAME;
     clientId += String(random(0xffff), HEX);
@@ -256,7 +256,7 @@ void checkMqtt() {
     }
   }
 
-  print("Waiting patiently for messages :D"); 
+  print("Waiting patiently for messages :D");
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
@@ -355,7 +355,7 @@ void drawDiscord() {
   _message.replace("\n\n", "\n");
 
   buffer.print(_message.c_str());
-  
+
   // We want to check if line scrolling is needed, so we do a "quick" check
   bool moreLines = false;
   for (int x = 0; x < WIDTH && !moreLines; x++) {
@@ -374,7 +374,7 @@ void drawDiscord() {
   }
 
   buffer.fillRect(0, 21, WIDTH, 7, 0x0000);
-  
+
   buffer.setCursor(64, 28);
   buffer.print(discordChannel);
 }
@@ -410,13 +410,13 @@ void drawDepartureBoard() {
   }
 
   RTCTime currentTime;
-  RTC.getTime(currentTime); 
+  RTC.getTime(currentTime);
 
   buffer.setCursor(64+10, 28);
   buffer.print(String(currentTime).c_str() + 11);
 
   redrawTimer = millis() + 1000;
-  if ((clearTimer > 0 && clearTimer < millis()) || 
+  if ((clearTimer > 0 && clearTimer < millis()) ||
       doc.size() == 0) {
     clearTimer = 0;
     departures[0] = '\0';
@@ -443,8 +443,7 @@ void loop() {
   }
 
   if (redrawTimer < m) {
-  
-    // This can be overridded by a draw function, e.g. for scrolling text
+    // This can be overridden by a draw function, e.g. for scrolling text
     redrawTimer = m + 20e3;
 
     buffer.fillScreen(0x0000);
