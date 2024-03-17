@@ -299,6 +299,9 @@ void checkMqtt() {
       mqtt.subscribe(DOORBELL_TOPIC "/#");
       //mqtt.subscribe(TEMPERATURE_TOPIC "/#");
       mqtt.subscribe(DEPARTURE_TOPIC);
+
+      mqtt.publish("nh/discord/tx/pm/asjackson", NAME " - Restarted");
+      mqtt.publish("nh/irc/tx/pm/asjackson", NAME " - Restarted");
     } else {
       print("MQTT connection failed :'(");
       delay(1000);
