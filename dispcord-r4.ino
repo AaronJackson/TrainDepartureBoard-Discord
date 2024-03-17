@@ -417,9 +417,9 @@ void drawDiscord() {
 
   if (moreLines || (lineOffset % 7) != 0) {
     if ((lineOffset % 7) == 0)
-      redrawTimer = millis() + 2000;
+      redrawTimer = millis() + 2500;
     else
-      redrawTimer = millis() + 30;
+      redrawTimer = millis() + 50;
     lineOffset++;
   } else {
     if (lineOffset > 0) redrawTimer = millis() + 4000;
