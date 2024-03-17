@@ -5,6 +5,7 @@
 #include "Font5x7Fixed.h"
 #include <RTC.h>
 #include <NTPClient.h>
+#include "FspTimer.h"
 
 /**
  *
@@ -62,11 +63,12 @@
 
 // Global objects
 GFXcanvas1 buffer(WIDTH, HEIGHT);
-uint8_t *rawBuffer;
+volatile uint8_t *rawBuffer;
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 WiFiUDP Udp;
 NTPClient timeClient(Udp);
+FspTimer timer;
 
 //#define DEBUG_HOME
 
@@ -82,7 +84,38 @@ char departures[512];
 unsigned long clearTimer; // time to clear the doorbell (or other) message
 unsigned long redrawTimer; // Optionally force a redraw at millis()
 int lineOffset;
+volatile int row;
+volatile int col;
 
+void drawBufferISR(timer_callback_args_t __attribute((unused)) *p_args);
+
+bool beginTimer(float rate) {
+  uint8_t timer_type = AGT_TIMER;
+  int8_t tindex = FspTimer::get_available_timer(timer_type);
+  if (tindex < 0){
+    tindex = FspTimer::get_available_timer(timer_type, true);
+  }
+  if (tindex < 0){
+    return false;
+  }
+
+  if(!timer.begin(TIMER_MODE_PERIODIC, timer_type, tindex, rate, 0.0f, drawBufferISR)){
+    return false;
+  }
+
+  if (!timer.setup_overflow_irq()){
+    return false;
+  }
+
+  if (!timer.open()){
+    return false;
+  }
+
+  if (!timer.start()){
+    return false;
+  }
+  return true;
+}
 
 void setup() {
   OUTPUT(STROBE); OUTPUT(CLOCK);
@@ -99,13 +132,15 @@ void setup() {
 
   randomSeed(micros());
 
-  // if (!beginTimer(1)) {
-  //   Serial.println("Issue with timer interrupt");
-  // }
-
   clearTimer = 0;
   redrawTimer = 0;
   lineOffset = 0;
+  row = 0;
+  col = 0;
+
+  if (!beginTimer(11000)) {
+    Serial.println("Issue with timer interrupt");
+  }
 
   doorbell[0] = '\0';
   temperatureArea[0] = '\0';
@@ -124,12 +159,12 @@ void setup() {
   RTC.setTime(timeToSet);
 }
 
-void drawBuffer() {
+void drawBufferISR(timer_callback_args_t __attribute((unused)) *p_args) {
   int x,y;
-  uint8_t *ptr;
+  volatile uint8_t *ptr;
 
-  for (int row=0; row < 7; row++) {
-    for (int col=0; col < 192; col++) {
+  if (col >= 0 && col < 192) {
+    for (int i=0; i < 48; i++) {
       // The rows have to be swapped because of the order the bits are
       // pushed out.
       x = col;
@@ -152,8 +187,13 @@ void drawBuffer() {
 
       // Pulse the clock
       PULSE(CLOCK);
+      
+      col++;
     }
-    for (int col=192; col < 384; col++) {
+    return;
+  }
+  if (col >= 192 && col < 384) {
+    for (int i=0; i < 48; i++) {
       // The rows have to be swapped because of the order the bits are
       // pushed out.
       x = col - 192;
@@ -172,8 +212,12 @@ void drawBuffer() {
 
       // Pulse the clock
       PULSE(CLOCK);
+      col++;
     }
+    return;
+  }
 
+  if (col >= 384) {
     // Set row address via BCD lines
     PIN_SET(A, row & 1);
     PIN_SET(B, row & 2);
@@ -181,6 +225,11 @@ void drawBuffer() {
 
     // Latch the data
     PULSE(STROBE);
+
+    row++;
+    if (row == 7) row = 0;
+    
+    col = 0;
   }
 }
 
@@ -283,6 +332,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     char suffix[100];
     strcpy(suffix, topic + strlen(CHANNEL_TOPIC) + 1);
     char *sep = strchr(suffix, '/');
+    if ((sep-suffix) < 0) return; // no username part (e.g. "nh/discord/rx/general")
     strncpy(discordChannel, suffix, sep-suffix);
     strcpy(discordUsername, sep + 1);
 
@@ -431,7 +481,7 @@ void loop() {
     checkWiFi();
     checkMqtt();
     mqtt.loop();
-    poll = m + 1000;
+    poll = m + 500;
   }
 
   if (ntpRefresh < m) {
@@ -461,6 +511,4 @@ void loop() {
     drawBufferASCII();
 #endif
   }
-
-  drawBuffer();
 }
