@@ -80,6 +80,7 @@ char doorbell[32];
 char temperatureArea[32];
 char temperatureValue[32];
 char departures[512];
+bool updateTimeOnly; // Used while redrawing the departure board
 
 unsigned long clearTimer; // time to clear the doorbell (or other) message
 unsigned long redrawTimer; // Optionally force a redraw at millis()
@@ -358,6 +359,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 }
 
 void drawDoorbell() {
+  buffer.fillScreen(0x0000);
   buffer.setCursor(0, 21);
   buffer.setTextSize(3);
   buffer.print(doorbell);
@@ -372,6 +374,7 @@ void drawDoorbell() {
 }
 
 void drawTemperature() {
+  buffer.fillScreen(0x0000);
   buffer.setCursor(0, 21);
   buffer.setTextSize(3);
 
@@ -389,6 +392,7 @@ void drawTemperature() {
 }
 
 void drawDiscord() {
+  buffer.fillScreen(0x0000);
   buffer.setCursor(0, 7 - lineOffset);
   buffer.setTextWrap(true);
 
@@ -407,6 +411,7 @@ void drawDiscord() {
   _message.replace("😢", ":'(");
   _message.replace("\n\n", "\n");
 
+  noInterrupts();
   buffer.print(_message.c_str());
 
   // We want to check if line scrolling is needed, so we do a "quick" check
@@ -419,7 +424,7 @@ void drawDiscord() {
     if ((lineOffset % 7) == 0)
       redrawTimer = millis() + 2500;
     else
-      redrawTimer = millis() + 50;
+      redrawTimer = millis() + 35;
     lineOffset++;
   } else {
     if (lineOffset > 0) redrawTimer = millis() + 4000;
@@ -430,49 +435,64 @@ void drawDiscord() {
 
   buffer.setCursor(64, 28);
   buffer.print(discordChannel);
+  interrupts();
 }
 
 void drawDepartureBoard() {
   buffer.setTextWrap(false);
 
-  StaticJsonDocument<512> doc;
-  DeserializationError error = deserializeJson(doc, departures);
+  if (! updateTimeOnly) {
+    buffer.fillScreen(0x0000);
 
-  if (error) {
-    Serial.print(F("deserializeJson() failed: "));
-    Serial.println(error.f_str());
-    redrawTimer = 0;
-    return;
-  }
+    StaticJsonDocument<512> doc;
+    DeserializationError error = deserializeJson(doc, departures);
 
-  for (int d = 0; d < doc.size(); d++) {
-    JsonObject dep = doc[d].as<JsonObject>();
+    if (error) {
+      Serial.print(F("deserializeJson() failed: "));
+      Serial.println(error.f_str());
+      redrawTimer = 0;
+      updateTimeOnly = false;
+      return;
+    }
 
-    buffer.setCursor(0, 7 * (d + 1));
-    buffer.print((const char*)dep["std"]);
+    if (doc.size() == 0) {
+      redrawTimer = 0;
+      updateTimeOnly = false;
+      return;
+    }
 
-    buffer.setCursor(30, 7 * (d + 1));
-    buffer.print((const char*)dep["destination"]);
+    for (int d = 0; d < doc.size(); d++) {
+      JsonObject dep = doc[d].as<JsonObject>();
 
-    buffer.fillRect(142, 7 * d, 50, 7, 0x0000);
-    buffer.setCursor(145, 7 * (d + 1));
-    buffer.print((const char*)dep["platform"]);
+      buffer.setCursor(0, 7 * (d + 1));
+      buffer.print((const char*)dep["std"]);
 
-    buffer.setCursor(160, 7 * (d + 1));
-    buffer.print((const char*)dep["etd"]);
+      buffer.setCursor(30, 7 * (d + 1));
+      buffer.print((const char*)dep["destination"]);
+
+      buffer.fillRect(142, 7 * d, 50, 7, 0x0000);
+      buffer.setCursor(145, 7 * (d + 1));
+      buffer.print((const char*)dep["platform"]);
+
+      buffer.setCursor(160, 7 * (d + 1));
+      buffer.print((const char*)dep["etd"]);
+    }
+
+    updateTimeOnly = true;
   }
 
   RTCTime currentTime;
   RTC.getTime(currentTime);
 
+  buffer.fillRect(0, 21, WIDTH, 7, 0x0000);
   buffer.setCursor(64+10, 28);
   buffer.print(String(currentTime).c_str() + 11);
 
   redrawTimer = millis() + 1000;
-  if ((clearTimer > 0 && clearTimer < millis()) ||
-      doc.size() == 0) {
+  if ((clearTimer > 0 && clearTimer < millis())) {
     clearTimer = 0;
     departures[0] = '\0';
+    updateTimeOnly = false;
   }
 }
 
@@ -499,7 +519,6 @@ void loop() {
     // This can be overridden by a draw function, e.g. for scrolling text
     redrawTimer = m + 20e3;
 
-    buffer.fillScreen(0x0000);
     if (strlen(doorbell) > 0) {
       drawDoorbell();
     } else if (strlen(departures) > 0) {
