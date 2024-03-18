@@ -138,7 +138,7 @@ void setup() {
   row = 0;
   col = 0;
 
-  if (!beginTimer(11000)) {
+  if (!beginTimer(8000)) {
     Serial.println("Issue with timer interrupt");
   }
 
