@@ -160,6 +160,21 @@ void setup() {
   RTC.setTime(timeToSet);
 }
 
+/**
+ * Right, I know this is horrible. Let me explain:
+ *
+ * - It used to be `for (int i=0; i < 384; i++) { ... }` but this
+ *   required a modulo operation with a non-power of two. That
+ *   required like clock cycles rather than 2. The loop was split into
+ *   two parts, 0-191 and 192 to 383. Much faster.
+ *
+ * - While trying to get this to run as an ISR, the WiFi kept
+ *   disconnecting. The ISR was taking too long, so I split each of
+ *   the loops into 4 parts. This means if the interrupt timer is
+ *   firing at 8KHz, we are doing 8000 / 2 / 4 / 7 frames per
+ *   second. The seven comes from the number of rows. Roughly 140fps,
+ *   quite good.
+ */
 void drawBufferISR(timer_callback_args_t __attribute((unused)) *p_args) {
   int x,y;
   volatile uint8_t *ptr;
