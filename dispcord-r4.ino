@@ -56,7 +56,7 @@
 #define _OUTPUT(port, pin) port->PDR |= bit(pin)
 #define PIN_SET(...) _PIN_SET(__VA_ARGS__)
 #define OUTPUT(...) _OUTPUT(__VA_ARGS__)
-#define PULSE(port) _PIN_SET(port, HIGH); NOP; NOP; NOP; _PIN_SET(port, LOW)
+#define PULSE(port) _PIN_SET(port, HIGH); NOP; NOP; NOP; NOP; NOP; NOP; _PIN_SET(port, LOW)
 
 #define WIDTH 8*8*3
 #define HEIGHT 7*4
