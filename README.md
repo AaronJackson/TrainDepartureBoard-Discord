@@ -1,4 +1,4 @@
-* Discord on a Train Departure Board
+# Discord on a Train Departure Board
 
 Still a work in progress.
 
