@@ -29,13 +29,14 @@
  * We can probably share a single pin for the pairs of shift registers.
  */
 
-#define CLOCK R_PORT3, 1   // D0
-#define SHA R_PORT3, 2     // D1
-#define A R_PORT1, 4       // D2
-#define B R_PORT1, 5       // D3
-#define C R_PORT1, 6       // D4
-#define STROBE R_PORT1, 11 // D6
-#define SHB R_PORT1, 7     // D5
+#define ETH_RESET R_PORT1, 1 // P101
+#define CLOCK R_PORT1, 11    // P111
+#define SHA R_PORT1, 12      // P112
+#define A R_PORT1, 7         // P107
+#define B R_PORT1, 6         // P106
+#define C R_PORT1, 5         // P105
+#define STROBE R_PORT1, 4    // P104
+#define SHB R_PORT1, 13      // P13
 
 // WiFi credentials
 #define SSID ""
