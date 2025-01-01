@@ -1,4 +1,7 @@
-#include "WiFiS3.h"
+# requires custom board variant: https://git.sr.ht/~asj/asj-arduino-boards/tree/main/item/renesas_uno/variants/TDB
+
+#include <SPI.h>
+#include <Ethernet.h>
 #include <PubSubClient.h>
 #include <Adafruit_GFX.h>
 #include <ArduinoJson.h>
@@ -39,9 +42,7 @@
 #define SHB R_PORT1, 13      // P13
 
 // WiFi credentials
-#define SSID ""
-#define PASS ""
-#define MQTT_HOST ""
+#define MQTT_HOST "10.0.0.4"
 #define MQTT_PORT 1883
 #define NAME "DepartureBoard"
 
@@ -62,12 +63,15 @@
 #define WIDTH 8*8*3
 #define HEIGHT 7*4
 
+byte mac[] = { 0xA0, 0x3F, 0x9A, 0x86, 0xFF, 0xBF };
+byte ip[] = {192, 168, 1, 24};
+
 // Global objects
 GFXcanvas1 buffer(WIDTH, HEIGHT);
 volatile uint8_t *rawBuffer;
-WiFiClient wifiClient;
-PubSubClient mqtt(wifiClient);
-WiFiUDP Udp;
+EthernetClient ethClient;
+PubSubClient mqtt(ethClient);
+EthernetUDP Udp;
 NTPClient timeClient(Udp);
 FspTimer timer;
 
@@ -123,6 +127,13 @@ void setup() {
   OUTPUT(STROBE); OUTPUT(CLOCK);
   OUTPUT(SHA); OUTPUT(SHB);
   OUTPUT(A); OUTPUT(B); OUTPUT(C);
+  //OUTPUT(ETH_RESET);
+  //PIN_SET(ETH_RESET, 1);
+
+  pinMode(A4, OUTPUT); // ETH_RESET
+  digitalWrite(A4, LOW);
+  delay(50);
+  digitalWrite(A4, HIGH);
 
   buffer.setFont(&Font5x7Fixed);
   buffer.setTextSize(1);
@@ -148,8 +159,32 @@ void setup() {
   temperatureArea[0] = '\0';
   temperatureValue[0] = '\0';
   departures[0] = '\0';
+  
+  delay(100);
 
-  checkWiFi();
+  Ethernet.init(CS);
+  Ethernet.begin(mac);
+
+  if (Ethernet.hardwareStatus() == EthernetNoHardware) {
+    while (true) {
+      Serial.println("No W5500 detected.");
+      delay(1000);
+    }
+  } else if (Ethernet.hardwareStatus() == EthernetW5500) {
+    buffer.print("W5500 Ethernet controller detected.");
+    Serial.print("W5500 Ethernet controller detected.");
+  } else {
+    Serial.print("Ethernet hardwareStatus() unknown.");
+  }
+
+  Serial.println("We have Ethernet (maybe)");
+
+  delay(300);
+  buffer.fillRect(0, 8, WIDTH, 16, 0x00);
+  buffer.setCursor(0, 16);
+  buffer.print(Ethernet.localIP());
+  Serial.println(Ethernet.localIP());
+
   checkMqtt();
 
   RTC.begin();
@@ -263,7 +298,7 @@ void drawBufferASCII() {
     Serial.println();
   }
   Serial.println();
-}
+} 
 
 void print(char *msg) {
   buffer.setCursor(0, 7);
@@ -278,22 +313,6 @@ void print(char *msg) {
 #endif
 }
 
-void checkWiFi() {
-  if (WiFi.status() == WL_CONNECTED) return;
-
-  print("Waiting for WiFi :)");
-
-  while (WiFi.begin(SSID, PASS) != WL_CONNECTED) {
-    delay(100);
-  }
-
-  print("WiFi OK :D");
-
-  long rssi = WiFi.RSSI();
-
-  Serial.print("signal strength (RSSI):");
-  Serial.println(rssi);
-}
 
 void checkMqtt() {
   if (mqtt.connected()) return;
@@ -517,7 +536,6 @@ unsigned long ntpRefresh = 0;
 void loop() {
   unsigned long m = millis();
   if (poll < m) {
-    checkWiFi();
     checkMqtt();
     mqtt.loop();
     poll = m + 500;
